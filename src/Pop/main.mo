@@ -787,7 +787,14 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
     supply_claim := supply;
   };
 
+  private stable var _claimer : Principal = _minter;
+   public shared(msg) func setClaimer(claimer : Principal) : async () {
+    assert(msg.caller == _minter);
+    _claimer := claimer;
+  };
+
   public shared(msg) func claim(who : Principal) : async TokenIndex {
+    assert(msg.caller == _claimer);
     let receiver = Ext.AccountIdentifier.fromPrincipal(who,null);
     let supply_tokenIndex = _nextClaimId;
     if(supply_tokenIndex > supply_claim){
