@@ -798,11 +798,6 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
     };
     _registry.put(supply_tokenIndex, receiver);
     _claimed.put(receiver,supply_tokenIndex);
-    ignore addRecord(msg.caller,"claim",[
-        ("to", #Text(receiver)),
-        ("token", #Text(encode(Principal.fromActor(this),supply_tokenIndex))),
-        ("balance", #U64(1)),
-    ]);
     return supply_tokenIndex
   };
 
@@ -810,6 +805,35 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
       token : TokenIndex;
       to : User;
       metadata : ?Blob;
+  };
+
+  public shared(msg) func batchMintNFTForMinter(requests : [MintRequest1]) : async [TokenIndex] {
+    assert(msg.caller == _minter);
+    var buffer = Buffer.Buffer<TokenIndex>(0);
+    var events = Buffer.Buffer<Root.IndefiniteEvent>(0);
+    for(request in requests.vals()){
+      let receiver = Ext.User.toAID(request.to);
+      let token = request.token;
+      let md : Metadata = #nonfungible({
+        metadata = request.metadata;
+      });
+      _registry.put(token, receiver);
+      _tokenMetadata.put(token, md);
+      _addProperty(token,request.metadata);
+      _supply := _supply + 1;
+      buffer.add(token);
+      events.add({
+        operation = "mint";
+        caller = msg.caller;
+        details = [
+          ("to", #Text(receiver)),
+          ("token", #Text(encode(Principal.fromActor(this),token))),
+          ("balance", #U64(1))
+        ];
+      });
+    };
+    ignore addRecordMany(events.toArray());
+    buffer.toArray();
   };
 
   public shared(msg) func batchMintNFTForClaimed(requests : [MintRequest1]) : async [TokenIndex] {
@@ -841,4 +865,5 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
     ignore addRecordMany(events.toArray());
     buffer.toArray();
   };
+
 }
