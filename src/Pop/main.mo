@@ -116,7 +116,7 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     _minter := minter;
   };
 
-  public shared(msg) func setManger(manager : Principal) : async () {
+  public shared(msg) func setManager(manager : Principal) : async () {
     assert(msg.caller == _manager);
     _manager := manager;
   };
