@@ -22,7 +22,7 @@ import Root "../cap/root";
 import Binary "mo:encoding/Binary";
 import AviatePrincipal "mo:principal/Principal";
 
-shared (install) actor class ERC721(init_minter: Principal) = this {
+shared (install) actor class ERC721(init_minter: Principal,init_manager : Principal) = this {
   type Result<Ok, Err> = Result.Result<Ok, Err>;
 
   type HashMap<K, V> = HashMap.HashMap<K, V>;
@@ -61,6 +61,7 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
 
   private stable var _supply : Balance  = 0;
   private stable var _minter : Principal  = init_minter;
+  private stable var _manager : Principal  = init_manager;
   private stable var _nextTokenId : TokenIndex  = 0;
 
   system func preupgrade() {
@@ -115,8 +116,13 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
     _minter := minter;
   };
 
+  public shared(msg) func setManger(manager : Principal) : async () {
+    assert(msg.caller == _manager);
+    _manager := manager;
+  };
+
   public shared(msg) func mintNFT(request : MintRequest) : async TokenIndex {
-    assert(msg.caller == _minter);
+    assert(msg.caller == _manager);
     let receiver = Ext.User.toAID(request.to);
     let token = _nextTokenId;
     let md : Metadata = #nonfungible({
@@ -201,6 +207,10 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
 
   public query func getMinter() : async Principal {
     _minter;
+  };
+
+  public query func getManager() : async Principal {
+    _manager;
   };
 
   public query func extensions() : async [Extension] {
@@ -474,7 +484,7 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
   };
 
   public shared(msg) func batchMintNFT(requests : [MintRequest]) : async [TokenIndex] {
-    assert(msg.caller == _minter);
+    assert(msg.caller == _manager);
     var buffer = Buffer.Buffer<TokenIndex>(0);
     var events = Buffer.Buffer<Root.IndefiniteEvent>(0);
     for(request in requests.vals()){
@@ -783,13 +793,13 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
   private stable var _claimedState : [(AccountIdentifier, TokenIndex)] = [];
   private var _claimed : HashMap<AccountIdentifier, TokenIndex> = HashMap.fromIter(_claimedState.vals(), 0, Text.equal, Text.hash);
   public shared(msg) func setSupplyClaim(supply : TokenIndex) : async () {
-    assert(msg.caller == _minter);
+    assert(msg.caller == _manager);
     supply_claim := supply;
   };
 
-  private stable var _claimer : Principal = _minter;
+  private stable var _claimer : Principal = _manager;
    public shared(msg) func setClaimer(claimer : Principal) : async () {
-    assert(msg.caller == _minter);
+    assert(msg.caller == _manager);
     _claimer := claimer;
   };
 
@@ -824,7 +834,7 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
   };
 
   public shared(msg) func batchMintNFTForMinter(requests : [MintRequest1]) : async [TokenIndex] {
-    assert(msg.caller == _minter);
+    assert(msg.caller == _manager);
     var buffer = Buffer.Buffer<TokenIndex>(0);
     var events = Buffer.Buffer<Root.IndefiniteEvent>(0);
     for(request in requests.vals()){
@@ -854,7 +864,7 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
   };
 
   public shared(msg) func batchMintNFTForClaimed(requests : [MintRequest1]) : async [TokenIndex] {
-    assert(msg.caller == _minter);
+    assert(msg.caller == _manager);
     var buffer = Buffer.Buffer<TokenIndex>(0);
     var events = Buffer.Buffer<Root.IndefiniteEvent>(0);
     for(request in requests.vals()){
