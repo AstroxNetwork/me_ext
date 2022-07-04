@@ -61,7 +61,7 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
 
   private stable var _supply : Balance  = 0;
   private stable var _minter : Principal  = init_minter;
-  private stable var _nextTokenId : TokenIndex  = 8800;
+  private stable var _nextTokenId : TokenIndex  = 0;
 
   system func preupgrade() {
     _claimedState := Iter.toArray(_claimed.entries());
@@ -808,6 +808,14 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
     _nextClaimId := _nextClaimId + 1;
     return supply_tokenIndex
   };
+  
+  public shared(msg) func getClaimed() : async [(AccountIdentifier, TokenIndex)] {
+      Iter.toArray(_claimed.entries());
+  };
+
+  public shared(msg) func getNextClaimId() : async TokenIndex {
+    _nextClaimId;
+  };
 
   public type MintRequest1 = {
       token : TokenIndex;
@@ -829,6 +837,7 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
       _tokenMetadata.put(token, md);
       _addProperty(token,request.metadata);
       _supply := _supply + 1;
+      _nextTokenId := _nextTokenId + 1;
       buffer.add(token);
       events.add({
         operation = "mint";
@@ -856,9 +865,11 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
       });
       _registry.put(token, receiver);
       _claimed.put(receiver,token);
+      _nextClaimId := _nextClaimId + 1;
       _tokenMetadata.put(token, md);
       _addProperty(token,request.metadata);
       _supply := _supply + 1;
+      _nextTokenId := _nextTokenId + 1;
       buffer.add(token);
       events.add({
         operation = "claim";
