@@ -61,7 +61,7 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
 
   private stable var _supply : Balance  = 0;
   private stable var _minter : Principal  = init_minter;
-  private stable var _nextTokenId : TokenIndex  = 497;
+  private stable var _nextTokenId : TokenIndex  = 8800;
 
   system func preupgrade() {
     _claimedState := Iter.toArray(_claimed.entries());
@@ -805,6 +805,7 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
     };
     _registry.put(supply_tokenIndex, receiver);
     _claimed.put(receiver,supply_tokenIndex);
+    _nextClaimId := _nextClaimId + 1;
     return supply_tokenIndex
   };
 
