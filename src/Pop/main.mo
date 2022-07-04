@@ -778,7 +778,7 @@ shared (install) actor class ERC721(init_minter: Principal) = this {
       AviatePrincipal.toText(AviatePrincipal.fromBlob(Blob.fromArray(rawTokenId)));
   };
 
-  private stable var _nextClaimId : TokenIndex  = 497;
+  private stable var _nextClaimId : TokenIndex  = 0;
   private stable var supply_claim : TokenIndex = 0;
   private stable var _claimedState : [(AccountIdentifier, TokenIndex)] = [];
   private var _claimed : HashMap<AccountIdentifier, TokenIndex> = HashMap.fromIter(_claimedState.vals(), 0, Text.equal, Text.hash);
