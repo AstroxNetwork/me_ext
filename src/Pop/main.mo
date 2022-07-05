@@ -797,10 +797,18 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     supply_claim := supply;
   };
 
+  public query(msg) func getSupplyClaim() : async TokenIndex {
+    supply_claim
+  };
+
   private stable var _claimer : Principal = _manager;
-   public shared(msg) func setClaimer(claimer : Principal) : async () {
+  public shared(msg) func setClaimer(claimer : Principal) : async () {
     assert(msg.caller == _manager);
     _claimer := claimer;
+  };
+
+  public query(msg) func getClaimer() : async Principal {
+    _claimer
   };
 
   public shared(msg) func claim(who : Principal) : async TokenIndex {
