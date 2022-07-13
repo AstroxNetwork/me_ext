@@ -813,6 +813,22 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     _claimer
   };
 
+  public query(msg) func getClaimable() : async Nat {
+    let aid = Ext.AccountIdentifier.fromPrincipal(msg.caller,null);
+    if(Option.isSome(_claimed.get(aid))){
+      return 0;
+    };
+    switch(_whitelist.get(aid)){
+      case (?nat){
+        return WL_LIMIT - nat;
+      };
+      case _ {
+        return 1;
+      };
+    };
+    return 0;
+  };
+
   public shared(msg) func claim(who : Principal) : async TokenIndex {
     assert(msg.caller == _claimer);
     let receiver = Ext.AccountIdentifier.fromPrincipal(who,null);
@@ -823,8 +839,23 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     if(Option.isSome(_claimed.get(receiver))){
       throw Error.reject("user already claimed");
     };
+    switch(_whitelist.get(receiver)){
+      case (?nat){
+        if(nat >= WL_LIMIT){
+          throw Error.reject("user already claimed");
+        }else{
+          _whitelist.put(receiver,nat + 1);
+          if(nat+1 == WL_LIMIT){
+            _claimed.put(receiver,supply_tokenIndex);
+          };
+        }
+      };
+      case _ {
+        _claimed.put(receiver,supply_tokenIndex);
+      };
+    };
     _registry.put(supply_tokenIndex, receiver);
-    _claimed.put(receiver,supply_tokenIndex);
+    // _claimed.put(receiver,supply_tokenIndex);
     _nextClaimId := _nextClaimId + 1;
     return supply_tokenIndex
   };
