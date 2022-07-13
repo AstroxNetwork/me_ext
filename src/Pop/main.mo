@@ -133,11 +133,11 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     _addProperty(token,request.metadata);
     _supply := _supply + 1;
     _nextTokenId := _nextTokenId + 1;
-    ignore addRecord(msg.caller,"mint",[
-        ("to", #Text(receiver)),
-        ("token", #Text(encode(Principal.fromActor(this),token))),
-        ("balance", #U64(1)),
-    ]);
+    // ignore addRecord(msg.caller,"mint",[
+    //     ("to", #Text(receiver)),
+    //     ("token", #Text(encode(Principal.fromActor(this),token))),
+    //     ("balance", #U64(1)),
+    // ]);
     return token;
   };
 
@@ -828,6 +828,12 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
   };
 
   private var _whitelist: HashMap.HashMap<AccountIdentifier, Nat> =  HashMap.HashMap<AccountIdentifier, Nat>(0, Text.equal, Text.hash);
+  stable var WL_LIMIT : Nat = 2;
+  public shared(msg) func setWlLimit(wl_limit : Nat) : async () {
+    assert(msg.caller == _manager);
+    WL_LIMIT := wl_limit;
+  };
+  
   public shared(msg) func addWl(aids : [AccountIdentifier]) : async () {
     assert(msg.caller == _manager);
     for(aid in aids.vals()){
@@ -840,7 +846,7 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     };
   };
 
-  public shared(msg) func getWl() : async [(AccountIdentifier,Nat)] {
+  public query func getWl() : async [(AccountIdentifier,Nat)] {
     Iter.toArray(_whitelist.entries())
   };
 
@@ -853,7 +859,7 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     };
     switch(_whitelist.get(receiver)){
       case (?nat){
-        if(nat >= 2){
+        if(nat >= WL_LIMIT){
           throw Error.reject("user already claimed");
         }else{
           _whitelist.put(receiver,nat + 1);
@@ -899,17 +905,17 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
       _supply := _supply + 1;
       _nextTokenId := _nextTokenId + 1;
       buffer.add(token);
-      events.add({
-        operation = "mint";
-        caller = msg.caller;
-        details = [
-          ("to", #Text(receiver)),
-          ("token", #Text(encode(Principal.fromActor(this),token))),
-          ("balance", #U64(1))
-        ];
-      });
+      // events.add({
+      //   operation = "mint";
+      //   caller = msg.caller;
+      //   details = [
+      //     ("to", #Text(receiver)),
+      //     ("token", #Text(encode(Principal.fromActor(this),token))),
+      //     ("balance", #U64(1))
+      //   ];
+      // });
     };
-    ignore addRecordMany(events.toArray());
+    // ignore addRecordMany(events.toArray());
     buffer.toArray();
   };
 
