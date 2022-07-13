@@ -826,6 +826,48 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     _nextClaimId := _nextClaimId + 1;
     return supply_tokenIndex
   };
+
+  private var _whitelist: HashMap.HashMap<AccountIdentifier, Nat> =  HashMap.HashMap<AccountIdentifier, Nat>(0, Text.equal, Text.hash);
+  public shared(msg) func addWl(aids : [AccountIdentifier]) : async () {
+    assert(msg.caller == _manager);
+    for(aid in aids.vals()){
+      switch(_whitelist.get(aid)){
+        case (?nat){};
+        case _ {
+          _whitelist.put(aid,0);
+        };
+      };
+    };
+  };
+
+  public shared(msg) func getWl() : async [(AccountIdentifier,Nat)] {
+    Iter.toArray(_whitelist.entries())
+  };
+
+  public shared(msg) func claimWithWl(who : Principal) : async TokenIndex {
+    assert(msg.caller == _claimer);
+    let receiver = Ext.AccountIdentifier.fromPrincipal(msg.caller,null);
+    let supply_tokenIndex = _nextClaimId;
+    if(supply_tokenIndex > supply_claim){
+      throw Error.reject("exceed claime supply");
+    };
+    switch(_whitelist.get(receiver)){
+      case (?nat){
+        if(nat >= 2){
+          throw Error.reject("user already claimed");
+        }else{
+          _whitelist.put(receiver,nat + 1);
+        }
+      };
+      case _ {
+        _whitelist.put(receiver,1);
+      };
+    };
+    _registry.put(supply_tokenIndex, receiver);
+    _claimed.put(receiver,supply_tokenIndex);
+    _nextClaimId := _nextClaimId + 1;
+    return supply_tokenIndex
+  };
   
   public shared(msg) func getClaimed() : async [(AccountIdentifier, TokenIndex)] {
       Iter.toArray(_claimed.entries());
