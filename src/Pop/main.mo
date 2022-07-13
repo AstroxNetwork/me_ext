@@ -868,7 +868,7 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
         }
       };
       case _ {
-        _whitelist.put(receiver,1);
+        throw Error.reject("not white list");
       };
     };
     _registry.put(supply_tokenIndex, receiver);
