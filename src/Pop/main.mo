@@ -867,7 +867,7 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     WL_LIMIT := wl_limit;
   };
 
-  public shared(msg) func addWl(aids : [AccountIdentifier]) : async () {
+  public shared(msg) func addWhitelist(aids : [AccountIdentifier]) : async () {
     assert(msg.caller == _manager);
     for(aid in aids.vals()){
       switch(_whitelist.get(aid)){
@@ -879,35 +879,10 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     };
   };
 
-  public query func getWl() : async [(AccountIdentifier,Nat)] {
+  public query func getWhitelist() : async [(AccountIdentifier,Nat)] {
     Iter.toArray(_whitelist.entries())
   };
 
-  public shared(msg) func claimWithWl(who : Principal) : async TokenIndex {
-    assert(msg.caller == _claimer);
-    let receiver = Ext.AccountIdentifier.fromPrincipal(msg.caller,null);
-    let supply_tokenIndex = _nextClaimId;
-    if(supply_tokenIndex > supply_claim){
-      throw Error.reject("exceed claime supply");
-    };
-    switch(_whitelist.get(receiver)){
-      case (?nat){
-        if(nat >= WL_LIMIT){
-          throw Error.reject("user already claimed");
-        }else{
-          _whitelist.put(receiver,nat + 1);
-        }
-      };
-      case _ {
-        throw Error.reject("not white list");
-      };
-    };
-    _registry.put(supply_tokenIndex, receiver);
-    _claimed.put(receiver,supply_tokenIndex);
-    _nextClaimId := _nextClaimId + 1;
-    return supply_tokenIndex
-  };
-  
   public shared(msg) func getClaimed() : async [(AccountIdentifier, TokenIndex)] {
       Iter.toArray(_claimed.entries());
   };
