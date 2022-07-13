@@ -70,9 +70,11 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     _allowancesState := Iter.toArray(_allowances.entries());
     _tokenMetadataState := Iter.toArray(_tokenMetadata.entries());
     _propertiesArr := Iter.toArray(_properties.entries());
+    _whitelistState := Iter.toArray(_whitelist.entries());
   };
 
   system func postupgrade() {
+    _whitelistState := [];
     _claimedState := [];
     _registryState := [];
     _allowancesState := [];
@@ -826,14 +828,14 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     _nextClaimId := _nextClaimId + 1;
     return supply_tokenIndex
   };
-
+  private stable var _whitelistState : [(AccountIdentifier,Nat)] = [];
   private var _whitelist: HashMap.HashMap<AccountIdentifier, Nat> =  HashMap.HashMap<AccountIdentifier, Nat>(0, Text.equal, Text.hash);
   stable var WL_LIMIT : Nat = 2;
   public shared(msg) func setWlLimit(wl_limit : Nat) : async () {
     assert(msg.caller == _manager);
     WL_LIMIT := wl_limit;
   };
-  
+
   public shared(msg) func addWl(aids : [AccountIdentifier]) : async () {
     assert(msg.caller == _manager);
     for(aid in aids.vals()){
