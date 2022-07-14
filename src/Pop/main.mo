@@ -815,9 +815,6 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
 
   public query(msg) func getClaimable(who : Principal) : async Nat {
     let aid = Ext.AccountIdentifier.fromPrincipal(who,null);
-    if(Option.isSome(_claimed.get(aid))){
-      return 0;
-    };
     switch(_whitelist.get(aid)){
       case (?nat){
         return WL_LIMIT - nat;
@@ -827,6 +824,30 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
       };
     };
     return 0;
+  };
+
+  public shared(msg) func claimWithWhitelist() : async TokenIndex {
+    let receiver = Ext.AccountIdentifier.fromPrincipal(msg.caller,null);
+    let supply_tokenIndex = _nextClaimId;
+    if(supply_tokenIndex > supply_claim){
+      throw Error.reject("exceed claime supply");
+    };
+    switch(_whitelist.get(receiver)){
+      case (?nat){
+        if(nat >= WL_LIMIT){
+          throw Error.reject("user already claimed");
+        }else{
+          _whitelist.put(receiver,nat + 1);
+        }
+      };
+      case _ {
+        throw Error.reject("not white list");
+      };
+    };
+    _registry.put(supply_tokenIndex, receiver);
+    _claimed.put(receiver,supply_tokenIndex);
+    _nextClaimId := _nextClaimId + 1;
+    return supply_tokenIndex
   };
 
   public shared(msg) func claim(who : Principal) : async TokenIndex {
@@ -839,26 +860,12 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     if(Option.isSome(_claimed.get(receiver))){
       throw Error.reject("user already claimed");
     };
-    switch(_whitelist.get(receiver)){
-      case (?nat){
-        if(nat >= WL_LIMIT){
-          throw Error.reject("user already claimed");
-        }else{
-          _whitelist.put(receiver,nat + 1);
-          if(nat+1 == WL_LIMIT){
-            _claimed.put(receiver,supply_tokenIndex);
-          };
-        }
-      };
-      case _ {
-        _claimed.put(receiver,supply_tokenIndex);
-      };
-    };
     _registry.put(supply_tokenIndex, receiver);
-    // _claimed.put(receiver,supply_tokenIndex);
+    _claimed.put(receiver,supply_tokenIndex);
     _nextClaimId := _nextClaimId + 1;
     return supply_tokenIndex
   };
+
   private stable var _whitelistState : [(AccountIdentifier,Nat)] = [];
   private var _whitelist: HashMap.HashMap<AccountIdentifier, Nat> =  HashMap.HashMap<AccountIdentifier, Nat>(0, Text.equal, Text.hash);
   stable var WL_LIMIT : Nat = 2;
