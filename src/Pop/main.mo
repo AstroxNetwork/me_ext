@@ -790,7 +790,7 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
       AviatePrincipal.toText(AviatePrincipal.fromBlob(Blob.fromArray(rawTokenId)));
   };
 
-  private stable var _nextClaimId : TokenIndex  = 0;
+  private stable var _nextClaimId : TokenIndex  = 807;
   private stable var supply_claim : TokenIndex = 0;
   private stable var _claimedState : [(AccountIdentifier, TokenIndex)] = [];
   private var _claimed : HashMap<AccountIdentifier, TokenIndex> = HashMap.fromIter(_claimedState.vals(), 0, Text.equal, Text.hash);
@@ -813,8 +813,8 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     _claimer
   };
 
-  public query(msg) func getClaimable() : async Nat {
-    let aid = Ext.AccountIdentifier.fromPrincipal(msg.caller,null);
+  public query(msg) func getClaimable(who : Principal) : async Nat {
+    let aid = Ext.AccountIdentifier.fromPrincipal(who,null);
     if(Option.isSome(_claimed.get(aid))){
       return 0;
     };
