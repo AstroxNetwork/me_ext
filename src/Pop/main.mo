@@ -838,6 +838,9 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
           throw Error.reject("user already claimed");
         }else{
           _whitelist.put(receiver,nat + 1);
+          if(nat + 1 == WL_LIMIT){
+            _claimed.put(receiver,supply_tokenIndex);
+          };
         }
       };
       case _ {
@@ -845,7 +848,7 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
       };
     };
     _registry.put(supply_tokenIndex, receiver);
-    _claimed.put(receiver,supply_tokenIndex);
+    // _claimed.put(receiver,supply_tokenIndex);
     _nextClaimId := _nextClaimId + 1;
     return supply_tokenIndex
   };
@@ -860,8 +863,23 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
     if(Option.isSome(_claimed.get(receiver))){
       throw Error.reject("user already claimed");
     };
+    switch(_whitelist.get(receiver)){
+      case (?nat){
+        if(nat >= WL_LIMIT){
+          throw Error.reject("user already claimed");
+        }else{
+          _whitelist.put(receiver,nat + 1);
+          if(nat+1 == WL_LIMIT){
+            _claimed.put(receiver,supply_tokenIndex);
+          };
+        }
+      };
+      case _ {
+        _claimed.put(receiver,supply_tokenIndex);
+      };
+    };
     _registry.put(supply_tokenIndex, receiver);
-    _claimed.put(receiver,supply_tokenIndex);
+    // _claimed.put(receiver,supply_tokenIndex);
     _nextClaimId := _nextClaimId + 1;
     return supply_tokenIndex
   };
