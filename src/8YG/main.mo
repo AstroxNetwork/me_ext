@@ -22,7 +22,7 @@ import Root "../cap/root";
 import Binary "mo:encoding/Binary";
 import AviatePrincipal "mo:principal/Principal";
 
-shared (install) actor class ERC721(init_minter: Principal,init_manager : Principal) = this {
+shared (install) actor class ERC721(init_manager : Principal) = this {
   type Result<Ok, Err> = Result.Result<Ok, Err>;
 
   type HashMap<K, V> = HashMap.HashMap<K, V>;
@@ -60,22 +60,17 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
   private var _tokenMetadata : HashMap<TokenIndex, Metadata> = HashMap.fromIter(_tokenMetadataState.vals(), 0, Ext.Core.TokenIndex.equal, Ext.Core.TokenIndex.hash);
 
   private stable var _supply : Balance  = 0;
-  private stable var _minter : Principal  = init_minter;
   private stable var _manager : Principal  = init_manager;
   private stable var _nextTokenId : TokenIndex  = 0;
 
   system func preupgrade() {
-    _claimedState := Iter.toArray(_claimed.entries());
     _registryState := Iter.toArray(_registry.entries());
     _allowancesState := Iter.toArray(_allowances.entries());
     _tokenMetadataState := Iter.toArray(_tokenMetadata.entries());
     _propertiesArr := Iter.toArray(_properties.entries());
-    _whitelistState := Iter.toArray(_whitelist.entries());
   };
 
   system func postupgrade() {
-    _whitelistState := [];
-    _claimedState := [];
     _registryState := [];
     _allowancesState := [];
     _tokenMetadataState := [];
@@ -107,40 +102,16 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
       };
       ignore cap.insert(record);
   };
+  
   func addRecordMany(
       records : [Root.IndefiniteEvent]
       ): async () {
       ignore cap.insert_many(records);
   };
 
-  public shared(msg) func setMinter(minter : Principal) : async () {
-    assert(msg.caller == _manager);
-    _minter := minter;
-  };
-
   public shared(msg) func setManager(manager : Principal) : async () {
     assert(msg.caller == _manager);
     _manager := manager;
-  };
-
-  public shared(msg) func mintNFT(request : MintRequest) : async TokenIndex {
-    assert(msg.caller == _manager);
-    let receiver = Ext.User.toAID(request.to);
-    let token = _nextTokenId;
-    let md : Metadata = #nonfungible({
-      metadata = request.metadata;
-    });
-    _registry.put(token, receiver);
-    _tokenMetadata.put(token, md);
-    _addProperty(token,request.metadata);
-    _supply := _supply + 1;
-    _nextTokenId := _nextTokenId + 1;
-    // ignore addRecord(msg.caller,"mint",[
-    //     ("to", #Text(receiver)),
-    //     ("token", #Text(encode(Principal.fromActor(this),token))),
-    //     ("balance", #U64(1)),
-    // ]);
-    return token;
   };
 
   public shared(msg) func transfer(request: TransferRequest) : async TransferResponse {
@@ -205,10 +176,6 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
         return false;
       };
     };
-  };
-
-  public query func getMinter() : async Principal {
-    _minter;
   };
 
   public query func getManager() : async Principal {
@@ -789,199 +756,4 @@ shared (install) actor class ERC721(init_minter: Principal,init_manager : Princi
       
       AviatePrincipal.toText(AviatePrincipal.fromBlob(Blob.fromArray(rawTokenId)));
   };
-
-  private stable var _nextClaimId : TokenIndex  = 807;
-  private stable var supply_claim : TokenIndex = 0;
-  private stable var _claimedState : [(AccountIdentifier, TokenIndex)] = [];
-  private var _claimed : HashMap<AccountIdentifier, TokenIndex> = HashMap.fromIter(_claimedState.vals(), 0, Text.equal, Text.hash);
-  public shared(msg) func setSupplyClaim(supply : TokenIndex) : async () {
-    assert(msg.caller == _manager);
-    supply_claim := supply;
-  };
-
-  public query(msg) func getSupplyClaim() : async TokenIndex {
-    supply_claim
-  };
-
-  private stable var _claimer : Principal = _manager;
-  public shared(msg) func setClaimer(claimer : Principal) : async () {
-    assert(msg.caller == _manager);
-    _claimer := claimer;
-  };
-
-  public query(msg) func getClaimer() : async Principal {
-    _claimer
-  };
-
-  public query(msg) func getClaimable(who : Principal) : async Nat {
-    let aid = Ext.AccountIdentifier.fromPrincipal(who,null);
-    switch(_whitelist.get(aid)){
-      case (?nat){
-        return WL_LIMIT - nat;
-      };
-      case _ {
-        return 1;
-      };
-    };
-    return 0;
-  };
-
-  public shared(msg) func claimWithWhitelist() : async TokenIndex {
-    let receiver = Ext.AccountIdentifier.fromPrincipal(msg.caller,null);
-    let supply_tokenIndex = _nextClaimId;
-    if(supply_tokenIndex > supply_claim){
-      throw Error.reject("exceed claime supply");
-    };
-    switch(_whitelist.get(receiver)){
-      case (?nat){
-        if(nat >= WL_LIMIT){
-          throw Error.reject("user already claimed");
-        }else{
-          _whitelist.put(receiver,nat + 1);
-          if(nat + 1 == WL_LIMIT){
-            _claimed.put(receiver,supply_tokenIndex);
-          };
-        }
-      };
-      case _ {
-        throw Error.reject("not white list");
-      };
-    };
-    _registry.put(supply_tokenIndex, receiver);
-    // _claimed.put(receiver,supply_tokenIndex);
-    _nextClaimId := _nextClaimId + 1;
-    return supply_tokenIndex
-  };
-
-  public shared(msg) func claim(who : Principal) : async TokenIndex {
-    assert(msg.caller == _claimer);
-    let receiver = Ext.AccountIdentifier.fromPrincipal(who,null);
-    let supply_tokenIndex = _nextClaimId;
-    if(supply_tokenIndex > supply_claim){
-      throw Error.reject("exceed claime supply");
-    };
-    if(Option.isSome(_claimed.get(receiver))){
-      throw Error.reject("user already claimed");
-    };
-    switch(_whitelist.get(receiver)){
-      case (?nat){
-        if(nat >= WL_LIMIT){
-          throw Error.reject("user already claimed");
-        }else{
-          _whitelist.put(receiver,nat + 1);
-          if(nat+1 == WL_LIMIT){
-            _claimed.put(receiver,supply_tokenIndex);
-          };
-        }
-      };
-      case _ {
-        _claimed.put(receiver,supply_tokenIndex);
-      };
-    };
-    _registry.put(supply_tokenIndex, receiver);
-    // _claimed.put(receiver,supply_tokenIndex);
-    _nextClaimId := _nextClaimId + 1;
-    return supply_tokenIndex
-  };
-
-  private stable var _whitelistState : [(AccountIdentifier,Nat)] = [];
-  private var _whitelist: HashMap.HashMap<AccountIdentifier, Nat> =  HashMap.HashMap<AccountIdentifier, Nat>(0, Text.equal, Text.hash);
-  stable var WL_LIMIT : Nat = 2;
-  public shared(msg) func setWlLimit(wl_limit : Nat) : async () {
-    assert(msg.caller == _manager);
-    WL_LIMIT := wl_limit;
-  };
-
-  public shared(msg) func addWhitelist(aids : [AccountIdentifier]) : async () {
-    assert(msg.caller == _manager);
-    for(aid in aids.vals()){
-      switch(_whitelist.get(aid)){
-        case (?nat){};
-        case _ {
-          _whitelist.put(aid,0);
-        };
-      };
-    };
-  };
-
-  public query func getWhitelist() : async [(AccountIdentifier,Nat)] {
-    Iter.toArray(_whitelist.entries())
-  };
-
-  public shared(msg) func getClaimed() : async [(AccountIdentifier, TokenIndex)] {
-      Iter.toArray(_claimed.entries());
-  };
-
-  public shared(msg) func getNextClaimId() : async TokenIndex {
-    _nextClaimId;
-  };
-
-  public type MintRequest1 = {
-      token : TokenIndex;
-      to : User;
-      metadata : ?Blob;
-  };
-
-  public shared(msg) func batchMintNFTForMinter(requests : [MintRequest1]) : async [TokenIndex] {
-    assert(msg.caller == _manager);
-    var buffer = Buffer.Buffer<TokenIndex>(0);
-    var events = Buffer.Buffer<Root.IndefiniteEvent>(0);
-    for(request in requests.vals()){
-      let receiver = Ext.User.toAID(request.to);
-      let token = request.token;
-      let md : Metadata = #nonfungible({
-        metadata = request.metadata;
-      });
-      _registry.put(token, receiver);
-      _tokenMetadata.put(token, md);
-      _addProperty(token,request.metadata);
-      _supply := _supply + 1;
-      _nextTokenId := _nextTokenId + 1;
-      buffer.add(token);
-      // events.add({
-      //   operation = "mint";
-      //   caller = msg.caller;
-      //   details = [
-      //     ("to", #Text(receiver)),
-      //     ("token", #Text(encode(Principal.fromActor(this),token))),
-      //     ("balance", #U64(1))
-      //   ];
-      // });
-    };
-    // ignore addRecordMany(events.toArray());
-    buffer.toArray();
-  };
-
-  public shared(msg) func batchMintNFTForClaimed(requests : [MintRequest1]) : async [TokenIndex] {
-    assert(msg.caller == _manager);
-    var buffer = Buffer.Buffer<TokenIndex>(0);
-    var events = Buffer.Buffer<Root.IndefiniteEvent>(0);
-    for(request in requests.vals()){
-      let receiver = Ext.User.toAID(request.to);
-      let token = request.token;
-      let md : Metadata = #nonfungible({
-        metadata = request.metadata;
-      });
-      _registry.put(token, receiver);
-      _claimed.put(receiver,token);
-      _nextClaimId := _nextClaimId + 1;
-      _tokenMetadata.put(token, md);
-      _addProperty(token,request.metadata);
-      _supply := _supply + 1;
-      _nextTokenId := _nextTokenId + 1;
-      buffer.add(token);
-      events.add({
-        operation = "claim";
-        caller = msg.caller;
-        details = [
-          ("to", #Text(receiver)),
-          ("token", #Text(encode(Principal.fromActor(this),token))),
-          ("balance", #U64(1))
-        ];
-      });
-    };
-    ignore addRecordMany(events.toArray());
-    buffer.toArray();
-  };
-
 }

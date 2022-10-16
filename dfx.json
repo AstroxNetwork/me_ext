@@ -1,19 +1,10 @@
 {
   "version": 1,
-  "dfx": "0.8.4",
+  "dfx": "0.11.2",
   "canisters": {
-    "Pop": {
+    "me_ext": {
       "type": "motoko",
-      "main": "src/Pop/main.mo"
-    },
-    "Pop_assets": {
-      "type": "assets",
-      "source": [
-        "src/Pop_assets/assets"
-      ],
-      "dependencies": [
-        "Pop"
-      ]
+      "main": "src/8YG/main.mo"
     }
   },
   "defaults": {
